@@ -21,6 +21,17 @@ Consider the following URL/Response body pairs as tests:
 
 """
 
+def format_html(with_value, tag="h1"):
+    return f"<{tag}>{with_value}</{tag}>"
+
+def positive(number):
+    value = int(number) > 0
+    return format_html(value)
+
+def negative(number):
+    value = int(number) < 0
+    return format_html(value)
+
 def resolve_path(path):
     """
     Should return two values: a callable and an iterable of
@@ -31,8 +42,20 @@ def resolve_path(path):
     # examples provide the correct *syntax*, but you should
     # determine the actual values of func and args using the
     # path.
-    func = some_func
-    args = ['25', '32']
+    functions = {"positive": positive,
+                 "negative": negative}
+    
+    path = path.strip("/").split("/")
+    name = path[0]
+    args = path[1:]
+    
+    if len(args) < 1:
+        raise NameError
+
+    func = functions.get(name)
+
+    if not func:
+        raise NameError
 
     return func, args
 
