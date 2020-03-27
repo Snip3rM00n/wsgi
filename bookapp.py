@@ -7,11 +7,12 @@ DB = BookDB()
 
 
 def tagged(tag, content, end="\n", **kwargs):
-    if len(kwargs) > 0:
-        args = " ".join([f"{key}={value}" for key, value in kwargs.items()])
-        return f"<{tag} {args}>{content}</{tag}>{end}"
-    
-    return f"<{tag}>{content}</{tag}>{end}"
+    # Turn kwargs into a collection of usable HTML element attributes.
+    # Or leave the attributes empty if nothing is present.
+    attrs = " ".join([f"{key}={value}" for key, value in kwargs.items()])
+    attrs = f" {attrs}" if len(attrs) > 0 else ""
+
+    return f"<{tag}{attrs}>{content}</{tag}>{end}"
 
 
 def book(book_id):
