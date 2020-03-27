@@ -1,23 +1,88 @@
 import re
+import traceback
 
 from bookdb import BookDB
 
 DB = BookDB()
 
 
+def tagged(tag, content, end="\n", **kwargs):
+    if len(kwargs) > 0:
+        args = " ".join([f"{key}={value}" for key, value in kwargs.items()])
+        return f"<{tag} {args}>{content}</{tag}>{end}"
+    
+    return f"<{tag}>{content}</{tag}>{end}"
+
+
 def book(book_id):
-    return "<h1>a book with id %s</h1>" % book_id
+    book = DB.title_info(book_id)
+    if not book:
+        raise NameError
+
+    title = tagged("h1", book["title"])
+    table = []
+
+    for key, value in book.items():
+        if key == "title":
+            continue
+
+        key = key.upper() if key == "isbn" else key.capitalize()
+        row = tagged("th", key, end="") + tagged("td", value, end="")
+        table.append(tagged("tr", row))
+    
+    table = tagged("table", "".join(table))
+    anchor = tagged("a", "Return to List", href="/")
+
+    return "".join([title, table, anchor])
 
 
 def books():
-    return "<h1>a list of books</h1>"
+    all_books = DB.titles()
+    body = [tagged("h1", "My Bookshelf")]
+    book_anchors = [tagged("a",
+                           book["title"],
+                           href=f"/book/{book['id']}") for book in all_books]
+    book_anchors = "".join([tagged("li", anchor) for anchor in book_anchors])
+    body.append(tagged("ul", book_anchors))
+
+    return "".join(body)
+
+
+def resolve_path(path):
+    functions = {"": books,
+                 "book": book}
+    path = path.strip("/").split("/")
+
+    name = path[0]
+    args = path[1:]
+
+    function = functions.get(name)
+    if not function:
+        raise NameError
+
+    return function, args
 
 
 def application(environ, start_response):
-    status = "200 OK"
     headers = [('Content-type', 'text/html')]
-    start_response(status, headers)
-    return ["<h1>No Progress Yet</h1>".encode('utf8')]
+    try:
+        path = environ.get("PATH_INFO", None)
+        if not path:
+            raise NameError
+        function, args = resolve_path(path)
+        body = function(*args)
+        status = "200 OK"
+    except NameError:
+        status = "404 Not Found"
+        body = tagged("h1", "Not Found")
+    except Exception:
+        status = "500 Internal Server Error"
+        body = tagged("h1", "Internal Server Error")
+        print(traceback.format_exc())
+    finally:
+        headers.append(('Content-length', str(len(body))))
+        start_response(status, headers)
+        return [body.encode("utf8")]
 
 
 if __name__ == '__main__':
